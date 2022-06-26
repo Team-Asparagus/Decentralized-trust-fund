@@ -7,8 +7,8 @@ contract Factory {
 
     mapping (address => address[]) public creatorToTrust;
 
-    function createTrust(address[] memory _beneficiaries, uint256 _interval) public {
-        address trustContract = address(new DecentralizedTrustFund(_beneficiaries, msg.sender, _interval));
+    function createTrust(address[] memory _beneficiaries, uint256 _interval, address _trustee) public {
+        address trustContract = address(new DecentralizedTrustFund(_beneficiaries, msg.sender, _interval, _trustee));
         creatorToTrust[msg.sender].push(trustContract);
     }
 
@@ -21,18 +21,38 @@ error DecentralizedTrustFund_MustDepositValidAmount();
 
 contract DecentralizedTrustFund is KeeperCompatibleInterface {
 
-    mapping (address => uint256) private addressToAmount;
     uint256 private trustBalance;
     uint256 private interval;
     address private owner;
+    address private trustee;
     address[] private beneficiaries;
+    mapping (address => uint256) private addressToAmount;
+    mapping (address => bool) private isBeneficiaries;
+    mapping (address => bool) private isTrustee;
 
+    modifier onlyOwner(){
+        require(msg.sender == owner, "Operation restricted to owner");
+        _;
+    }
+    modifier onlyTrustee(){
+        require(isTrustee[msg.sender] == true || msg.sender == owner, "Operation restricted to trustees");
+        _;
+    }
     event Deposited(address depositor, uint256 amount);
 
-    constructor(address[] memory _beneficiaries, address _owner, uint256 _interval){
+constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, address _trustee){
+    for(uint i = 0; i< _beneficiaries.length; i++){
+        isBeneficiaries[_beneficiaries[i]] = true;
+    }
         owner = _owner;
+        trustee = _trustee;
         beneficiaries = _beneficiaries;
         interval = _interval;
+        isTrustee[_trustee] = true;
+    }
+
+    function addTrustee(address _trustee) public onlyOwner {
+        isTrustee[_trustee] = true;
     }
 
     function checkUpkeep(bytes memory /* checkData */ ) public view override returns (
@@ -54,6 +74,10 @@ contract DecentralizedTrustFund is KeeperCompatibleInterface {
         addressToAmount[msg.sender] += msg.value;
         emit Deposited(msg.sender, msg.value);
     }
+ 
+    function getOwner() public view returns(address) {
+        return owner;
+    }
     
     fallback() external payable {
         deposit();
@@ -62,4 +86,6 @@ contract DecentralizedTrustFund is KeeperCompatibleInterface {
     receive() external payable {
         deposit();
     }
+
+
 }
