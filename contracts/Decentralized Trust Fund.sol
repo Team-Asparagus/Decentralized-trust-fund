@@ -54,6 +54,9 @@ constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, 
     function addTrustee(address _trustee) public onlyOwner {
         isTrustee[_trustee] = true;
     }
+    function removeTrustee(address _trustee) public onlyOwner {
+        isTrustee[_trustee] = false;
+    }
 
     function checkUpkeep(bytes memory /* checkData */ ) public view override returns (
             bool upkeepNeeded,
