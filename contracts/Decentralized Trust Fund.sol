@@ -60,10 +60,13 @@ constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, 
     }
     function removeTrustee(address _trustee, uint _index) public onlyOwner {
         require(_index < trustees.length, "index out of bound");
+        // uint trusteeLength = trustees.length;
         isTrustee[_trustee] = false;
-        for (uint i = _index; i < trustees.length - 1; i++) {
-            trustees[i] = trustees[i + 1];
+        address[] memory _trustees = trustees;
+        for (uint i = _index; i < _trustees.length - 1; i++) {
+            _trustees[i] = _trustees[i + 1];
         }
+        trustees = _trustees;
         trustees.pop();
     }
 
