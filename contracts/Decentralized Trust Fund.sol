@@ -2,6 +2,7 @@
 pragma solidity ^0.8.7;
 
 import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract Factory {
 
@@ -20,15 +21,17 @@ contract Factory {
 error DecentralizedTrustFund_MustDepositValidAmount();
 
 contract DecentralizedTrustFund is KeeperCompatibleInterface {
-
-    uint256 private trustBalance;
+    address[] private trustees;
+    uint256 private ethBalance;
+    uint256 private daiBalance;
     uint256 private interval;
     address private owner;
-    address private trustee;
     address[] private beneficiaries;
     mapping (address => uint256) private addressToAmount;
     mapping (address => bool) private isBeneficiaries;
     mapping (address => bool) private isTrustee;
+    /// @dev hardcoded stable coin addresses to be refactored
+    IERC20 private token = IERC20(0xd393b1E02dA9831Ff419e22eA105aAe4c47E1253);
 
     modifier onlyOwner(){
         require(msg.sender == owner, "Operation restricted to owner");
@@ -45,17 +48,27 @@ constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, 
         isBeneficiaries[_beneficiaries[i]] = true;
     }
         owner = _owner;
-        trustee = _trustee;
         beneficiaries = _beneficiaries;
         interval = _interval;
         isTrustee[_trustee] = true;
+        trustees.push(_trustee);
     }
 
     function addTrustee(address _trustee) public onlyOwner {
         isTrustee[_trustee] = true;
+        trustees.push(_trustee);
     }
-    function removeTrustee(address _trustee) public onlyOwner {
+    function removeTrustee(address _trustee, uint _index) public onlyOwner {
+        require(_index < trustees.length, "index out of bound");
         isTrustee[_trustee] = false;
+        for (uint i = _index; i < trustees.length - 1; i++) {
+            trustees[i] = trustees[i + 1];
+        }
+        trustees.pop();
+    }
+
+    function getTrustees() public view returns(address[] memory) {
+        return trustees;
     }
 
     function checkUpkeep(bytes memory /* checkData */ ) public view override returns (
@@ -73,7 +86,7 @@ constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, 
         if(msg.value == 0){
             revert DecentralizedTrustFund_MustDepositValidAmount();
         }
-        trustBalance += msg.value;
+        ethBalance += msg.value;
         addressToAmount[msg.sender] += msg.value;
         emit Deposited(msg.sender, msg.value);
     }
