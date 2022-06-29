@@ -43,6 +43,8 @@ contract DecentralizedTrustFund is KeeperCompatibleInterface {
     }
     event Deposited(address depositor, uint256 amount);
 
+
+
 constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, address _trustee){
     for(uint i = 0; i< _beneficiaries.length; i++){
         isBeneficiaries[_beneficiaries[i]] = true;
@@ -54,13 +56,23 @@ constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, 
         trustees.push(_trustee);
     }
 
+    function approveDeposit(uint _amount) public {
+        token.approve(address(this), _amount);
+    }
+
+    function depositDai(uint _amount) public {
+        uint allowance = token.allowance(msg.sender, address(this));
+        require(allowance >= _amount, "Check the token allowance");
+        bool success = token.transferFrom(msg.sender, address(this), _amount);
+        require(success, "Transfer failed");
+    }
+
     function addTrustee(address _trustee) public onlyOwner {
         isTrustee[_trustee] = true;
         trustees.push(_trustee);
     }
     function removeTrustee(address _trustee, uint _index) public onlyOwner {
         require(_index < trustees.length, "index out of bound");
-        // uint trusteeLength = trustees.length;
         isTrustee[_trustee] = false;
         address[] memory _trustees = trustees;
         for (uint i = _index; i < _trustees.length - 1; i++) {
