@@ -8,8 +8,8 @@ contract Factory {
 
     mapping (address => address[]) public creatorToTrust;
 
-    function createTrust(address[] memory _beneficiaries, uint256 _interval, address _trustee) public {
-        address trustContract = address(new DecentralizedTrustFund(_beneficiaries, msg.sender, _interval, _trustee));
+    function createTrust(address[] memory _beneficiaries, uint256 _interval, address _trustee, uint _amountWithdrawable) public {
+        address trustContract = address(new DecentralizedTrustFund(_beneficiaries, msg.sender, _interval, _trustee, _amountWithdrawable));
         creatorToTrust[msg.sender].push(trustContract);
     }
 
@@ -19,12 +19,15 @@ contract Factory {
 }
 
 error DecentralizedTrustFund_MustDepositValidAmount();
+error DecentralizedTrustFund_SufficentTimeNotElapsed();
 
 contract DecentralizedTrustFund is KeeperCompatibleInterface {
     address[] private trustees;
     uint256 private ethBalance;
     uint256 private daiBalance;
     uint256 private interval;
+    uint256 private lastTimestamp;
+    uint256 private amountWithdrawable;
     address private owner;
     address[] private beneficiaries;
     mapping (address => uint256) private addressToAmount;
@@ -45,7 +48,7 @@ contract DecentralizedTrustFund is KeeperCompatibleInterface {
 
 
 
-constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, address _trustee){
+constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, address _trustee, uint256 _amountWithdrawable){
     for(uint i = 0; i< _beneficiaries.length; i++){
         isBeneficiaries[_beneficiaries[i]] = true;
     }
@@ -54,6 +57,8 @@ constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, 
         interval = _interval;
         isTrustee[_trustee] = true;
         trustees.push(_trustee);
+        lastTimestamp = block.timestamp;
+        amountWithdrawable = _amountWithdrawable;
     }
 
     function approveDeposit(uint _amount) public {
@@ -90,11 +95,19 @@ constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, 
             bool upkeepNeeded,
             bytes memory /* performData */
         ){
-
+         if(block.timestamp - lastTimestamp >= interval){
+             upkeepNeeded = true;
+         } else {
+             upkeepNeeded = false;
+         }
         }
     
     function performUpkeep(bytes calldata /* performData */) external override {
-
+        (bool enoughTimePassed, ) = checkUpkeep("");
+        if(!enoughTimePassed){
+            revert DecentralizedTrustFund_SufficentTimeNotElapsed();
+        }
+        token.transfer(msg.sender, amountWithdrawable);
     }
 
     function deposit() public payable {
