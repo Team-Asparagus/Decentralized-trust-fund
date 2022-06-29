@@ -71,6 +71,10 @@ constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, 
         bool success = token.transferFrom(msg.sender, address(this), _amount);
         require(success, "Transfer failed");
     }
+    function withdrawDai(uint256 _amount) public onlyOwner {
+        require(token.balanceOf(address(this)) >= _amount);
+        token.transfer(msg.sender, _amount);
+    }
 
     function addTrustee(address _trustee) public onlyOwner {
         isTrustee[_trustee] = true;
@@ -110,7 +114,7 @@ constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, 
         token.transfer(msg.sender, amountWithdrawable);
     }
 
-    function deposit() public payable {
+    function depositEth() public payable {
         if(msg.value == 0){
             revert DecentralizedTrustFund_MustDepositValidAmount();
         }
@@ -118,17 +122,18 @@ constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, 
         addressToAmount[msg.sender] += msg.value;
         emit Deposited(msg.sender, msg.value);
     }
+
  
     function getOwner() public view returns(address) {
         return owner;
     }
     
     fallback() external payable {
-        deposit();
+        depositEth();
     }
 
     receive() external payable {
-        deposit();
+        depositEth();
     }
 
 
