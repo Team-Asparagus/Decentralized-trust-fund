@@ -26,13 +26,15 @@ contract DecentralizedTrustFund is KeeperCompatibleInterface {
     uint256 private ethBalance;
     uint256 private daiBalance;
     uint256 private interval;
-    uint256 private lastTimestamp;
     uint256 private amountWithdrawable;
     address private owner;
     address[] private beneficiaries;
+    address[2] whiteLists;
     mapping (address => uint256) private addressToAmount;
     mapping (address => bool) private isBeneficiaries;
     mapping (address => bool) private isTrustee;
+    mapping (address => uint256) private lastTimestamp;
+    mapping (address => bool) private isWhiteList;
     /// @dev hardcoded stable coin addresses to be refactored
     IERC20 private token = IERC20(0xd393b1E02dA9831Ff419e22eA105aAe4c47E1253);
 
@@ -51,13 +53,17 @@ contract DecentralizedTrustFund is KeeperCompatibleInterface {
 constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, address _trustee, uint256 _amountWithdrawable){
     for(uint i = 0; i< _beneficiaries.length; i++){
         isBeneficiaries[_beneficiaries[i]] = true;
+        lastTimestamp[_beneficiaries[i]] = block.timestamp;
+    }
+    whiteLists = [0xd393b1E02dA9831Ff419e22eA105aAe4c47E1253, 0xd393b1E02Da9831EF419E22eA105aae4C47E1253];
+    for(uint i = 0; i< whiteLists.length; i++){
+        isWhiteList[whiteLists[i]] = true;
     }
         owner = _owner;
         beneficiaries = _beneficiaries;
         interval = _interval;
         isTrustee[_trustee] = true;
         trustees.push(_trustee);
-        lastTimestamp = block.timestamp;
         amountWithdrawable = _amountWithdrawable;
     }
 
@@ -99,7 +105,7 @@ constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, 
             bool upkeepNeeded,
             bytes memory /* performData */
         ){
-         if(block.timestamp - lastTimestamp >= interval){
+         if(block.timestamp - lastTimestamp[msg.sender] >= interval){
              upkeepNeeded = true;
          } else {
              upkeepNeeded = false;
@@ -112,6 +118,7 @@ constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, 
             revert DecentralizedTrustFund_SufficentTimeNotElapsed();
         }
         token.transfer(msg.sender, amountWithdrawable);
+        lastTimestamp[msg.sender] = block.timestamp;
     }
 
     function depositEth() public payable {
