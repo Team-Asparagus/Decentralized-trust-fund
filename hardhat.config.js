@@ -21,12 +21,14 @@ require("dotenv").config()
 const RINKEBY_RPC_URL =
  process.env.RINKEBY_RPC_URL || "https://eth-rinkeby.alchemyapi.io/v2/your-api-key"
 const KOVAN_RPC_URL = process.env.KOVAN_RPC_URL || "https://eth-kovan.alchemyapi.io/v2/your-api-key"
+const MUMBAI_RPC_URL = process.env.MUMBAI_RPC_URL || "https://eth-kovan.alchemyapi.io/v2/your-api-key"
 const POLYGON_MAINNET_RPC_URL =
  process.env.POLYGON_MAINNET_RPC_URL || "https://polygon-mainnet.alchemyapi.io/v2/your-api-key"
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "0x"
 // optional
 const MNEMONIC = process.env.MNEMONIC || "your mnemonic"
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || "your mnemonic"
+const POLYGONSCAN_KEY = process.env.POLYGONSCAN_KEY || "your mnemonic"
 
 module.exports = {
   // solidity: "0.8.8",
@@ -44,6 +46,12 @@ module.exports = {
     },
     localhost: {
         chainId: 31337,
+    },
+    mumbai: {
+      url: MUMBAI_RPC_URL,
+      accounts: [PRIVATE_KEY],
+      saveDeployments: true,
+      chainId: 80001,
     },
     kovan: {
         url: KOVAN_RPC_URL,
@@ -88,7 +96,9 @@ module.exports = {
     token: "ETH"
 },
   etherscan: {
-    apiKey: ETHERSCAN_API_KEY,
+    apiKey: {
+      polygonMumbai: POLYGONSCAN_KEY,
+    },
   },
   namedAccounts: {
     deployer: {

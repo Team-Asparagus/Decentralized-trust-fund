@@ -4,6 +4,7 @@ pragma solidity ^0.8.7;
 import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+
 contract Factory {
 
     mapping (address => address[]) public creatorToTrust;
@@ -13,8 +14,8 @@ contract Factory {
         creatorToTrust[msg.sender].push(trustContract);
     }
 
-    function getDeployedContracts() public view returns(address[] memory){
-        return creatorToTrust[msg.sender];
+    function getDeployedContracts(address _owner) public view returns(address[] memory){
+        return creatorToTrust[_owner];
     }
 }
 
@@ -128,6 +129,26 @@ constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, 
         ethBalance += msg.value;
         addressToAmount[msg.sender] += msg.value;
         emit Deposited(msg.sender, msg.value);
+    }
+
+    function decode(bytes calldata data) private pure returns(string memory functionName){
+       (functionName) = abi.decode(data, (string));
+    }
+
+    function depositToAave(bytes calldata _data, address _asset, address _target, uint256 _amount) public {
+        require(isWhiteList[_target], "Target contract is not whitelisted");
+        string memory funcName = decode(_data);
+        (bool success, ) = _target.call{value: 0}(abi.encodeWithSignature(funcName, _asset, _amount, owner, 0));
+        require(success, "Deposit to aave failed");
+    }
+
+
+    // curve/quickwap seem to be practically same so decision needs to be made which one to implement and which to leave 
+
+    function depositToCurve(/*bytes calldata _data, address _asset, address _target, uint256 _amount*/) public {
+    }
+
+    function depositToQucickswap(/*bytes calldata _data, address _asset, address _target, uint256 _amount*/) public {
     }
 
  

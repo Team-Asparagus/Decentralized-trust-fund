@@ -3,6 +3,12 @@ const networkConfig = {
         name: "hardhat",
         keepersUpdateInterval: "30",
     },
+    80001: {
+        name: "mumbai",
+        keepersUpdateInterval: "30",
+        callbackGasLimit: "500000", // 500,000 gas
+        daiAddress: "0xd393b1E02dA9831Ff419e22eA105aAe4c47E1253"
+    },
     31337: {
         name: "localhost",
         subscriptionId: "588",
@@ -10,6 +16,7 @@ const networkConfig = {
         keepersUpdateInterval: "30",
         raffleEntranceFee: "100000000000000000", // 0.1 ETH
         callbackGasLimit: "500000", // 500,000 gas
+        
     },
     4: {
         name: "rinkeby",
