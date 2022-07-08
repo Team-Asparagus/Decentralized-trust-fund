@@ -35,9 +35,9 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
     function sleep(ms) {
             return new Promise((resolve) => setTimeout(resolve, ms));
     }
+    if (!developmentChains.includes(network.name) && process.env.POLYGONSCAN_KEY) {
     console.log("Sleeping.....");
     await sleep(50000);
-if (!developmentChains.includes(network.name) && process.env.POLYGONSCAN_KEY) {
     log("Verifying...")
     await verify(factory.address, arguments)
 }
@@ -47,4 +47,4 @@ if (!developmentChains.includes(network.name) && process.env.POLYGONSCAN_KEY) {
 // log(`yarn hardhat run scripts/enterRaffle.js --network ${networkName}`)
 log("----------------------------------------------------")
 }
-module.exports.tags = ["all", "mocks"]
+module.exports.tags = ["all", "dtf"]

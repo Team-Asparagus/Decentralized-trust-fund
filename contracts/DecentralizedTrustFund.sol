@@ -8,10 +8,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract Factory {
 
     mapping (address => address[]) public creatorToTrust;
+    event TrustDeployed(address creator, address trustAddress);
 
     function createTrust(address[] memory _beneficiaries, uint256 _interval, address _trustee, uint _amountWithdrawable) public {
         address trustContract = address(new DecentralizedTrustFund(_beneficiaries, msg.sender, _interval, _trustee, _amountWithdrawable));
         creatorToTrust[msg.sender].push(trustContract);
+        emit TrustDeployed(msg.sender, trustContract);
     }
 
     function getDeployedContracts(address _owner) public view returns(address[] memory){
