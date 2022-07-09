@@ -10,8 +10,8 @@ contract Factory {
     mapping (address => address[]) public creatorToTrust;
     event TrustDeployed(address creator, address trustAddress);
 
-    function createTrust(address[] memory _beneficiaries, uint256 _interval, address _trustee, uint _amountWithdrawable) public {
-        address trustContract = address(new DecentralizedTrustFund(_beneficiaries, msg.sender, _interval, _trustee, _amountWithdrawable));
+    function createTrust(address[] memory _beneficiaries, uint256 _interval, address _trustee, uint _amountWithdrawable, address _daiTokenAddress) public {
+        address trustContract = address(new DecentralizedTrustFund(_beneficiaries, msg.sender, _interval, _trustee, _amountWithdrawable, _daiTokenAddress));
         creatorToTrust[msg.sender].push(trustContract);
         emit TrustDeployed(msg.sender, trustContract);
     }
@@ -19,6 +19,7 @@ contract Factory {
     function getDeployedContracts(address _owner) public view returns(address[] memory){
         return creatorToTrust[_owner];
     }
+
 }
 
 error DecentralizedTrustFund_MustDepositValidAmount();
@@ -38,8 +39,8 @@ contract DecentralizedTrustFund is KeeperCompatibleInterface {
     mapping (address => bool) private isTrustee;
     mapping (address => uint256) private lastTimestamp;
     mapping (address => bool) private isWhiteList;
+    IERC20 private daiToken;
     /// @dev hardcoded stable coin addresses to be refactored
-    IERC20 private token = IERC20(0xd393b1E02dA9831Ff419e22eA105aAe4c47E1253);
 
     modifier onlyOwner(){
         require(msg.sender == owner, "Operation restricted to owner");
@@ -53,7 +54,7 @@ contract DecentralizedTrustFund is KeeperCompatibleInterface {
 
 
 
-constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, address _trustee, uint256 _amountWithdrawable){
+constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, address _trustee, uint256 _amountWithdrawable, address _daiTokenAddress){
     for(uint i = 0; i< _beneficiaries.length; i++){
         isBeneficiaries[_beneficiaries[i]] = true;
         lastTimestamp[_beneficiaries[i]] = block.timestamp;
@@ -68,21 +69,25 @@ constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, 
         isTrustee[_trustee] = true;
         trustees.push(_trustee);
         amountWithdrawable = _amountWithdrawable;
+        daiToken = IERC20(_daiTokenAddress);
+
     }
 
-    function approveDeposit(uint _amount) public {
-        token.approve(address(this), _amount);
+    function approveDeposit(uint _amount) public returns(bool success) {
+       success = daiToken.approve(address(this), _amount);
+        require(success, "Approval failed");
     }
+    
 
     function depositDai(uint _amount) public {
-        uint allowance = token.allowance(msg.sender, address(this));
-        require(allowance >= _amount, "Check the token allowance");
-        bool success = token.transferFrom(msg.sender, address(this), _amount);
+        uint allowance = daiToken.allowance(msg.sender, address(this));
+        require(allowance >= _amount, "Check the daiToken allowance");
+        bool success = daiToken.transferFrom(msg.sender, address(this), _amount);
         require(success, "Transfer failed");
     }
     function withdrawDai(uint256 _amount) public onlyOwner {
-        require(token.balanceOf(address(this)) >= _amount);
-        token.transfer(msg.sender, _amount);
+        require(daiToken.balanceOf(address(this)) >= _amount);
+        daiToken.transfer(msg.sender, _amount);
     }
 
     function addTrustee(address _trustee) public onlyOwner {
@@ -103,6 +108,9 @@ constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, 
     function getTrustees() public view returns(address[] memory) {
         return trustees;
     }
+    function getBeneficiaries() public view returns(address[] memory) {
+        return beneficiaries;
+    }
 
     function checkUpkeep(bytes memory /* checkData */ ) public view override returns (
             bool upkeepNeeded,
@@ -120,7 +128,7 @@ constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, 
         if(!enoughTimePassed){
             revert DecentralizedTrustFund_SufficentTimeNotElapsed();
         }
-        token.transfer(msg.sender, amountWithdrawable);
+        daiToken.transfer(msg.sender, amountWithdrawable);
         lastTimestamp[msg.sender] = block.timestamp;
     }
 

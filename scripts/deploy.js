@@ -10,14 +10,14 @@ async function main() {
   */
   const FactoryContract = await ethers.getContractFactory("Factory");
   // deploy the contract
-  // const factory = await randomWinnerGame.deploy( );
 
- const factory = await  FactoryContract.deploy();
- await  factory.deployed();
- const DTF = await factory.createTrust(["0xfb876653069cbfc67bCB7661564136ea670c247E", "0x6db649efE9CeDC4178e379565A5415A64F362ED0"], 600, "0x6db649efE9CeDC4178e379565A5415A64F362ED0", 1000);
-await DTF.wait();
-const dtfAddress = await factory.getDeployedContracts()
-console.log(dtfAddress[0]);
+
+  const factory = await  FactoryContract.deploy();
+  await  factory.deployed();
+  const DTF = await factory.createTrust(["0xfb876653069cbfc67bCB7661564136ea670c247E", "0x6db649efE9CeDC4178e379565A5415A64F362ED0"], 600, "0x6db649efE9CeDC4178e379565A5415A64F362ED0", 1000);
+  await DTF.wait();
+  const dtfAddress = await factory.getDeployedContracts()
+  console.log(dtfAddress[0]);
 
   // print the address of the deployed contract
   console.log(

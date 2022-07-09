@@ -12,20 +12,20 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
     const chainId = network.config.chainId
     let daiAddress
 
-    // const Factory = await ethers.getContract("Factory")
-    if (chainId == 31337) {
-        const DappToken = await ethers.getContract("DappToken")
-        daiAddress = DappToken.address
+    // // const Factory = await ethers.getContract("Factory")
+    // if (chainId == 31337) {
+    //     // const DappToken = await ethers.getContract("DappToken")
+    //     // daiAddress = DappToken.address
         
-        // Fund the subscription
-        // Our mock makes it so we don't actually have to worry about sending fund
-    } else {
-        daiAddress = networkConfig[chainId]["daiAddress"]
-    }
+    //     // Fund the subscription
+    //     // Our mock makes it so we don't actually have to worry about sending fund
+    // } else {
+    //     daiAddress = networkConfig[chainId]["daiAddress"]
+    // }
 
     const arguments = []
 
-    const factory = await deploy("Factory", {
+    const dappToken = await deploy("DappToken", {
         from: deployer,
         args: arguments,
         log: true,
@@ -47,4 +47,4 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 // log(`yarn hardhat run scripts/enterRaffle.js --network ${networkName}`)
 log("----------------------------------------------------")
 }
-module.exports.tags = ["all", "dtf"]
+module.exports.tags = ["all", "local"]
