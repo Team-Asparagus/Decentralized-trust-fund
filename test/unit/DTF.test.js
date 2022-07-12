@@ -35,7 +35,7 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
             const trustees = await trustContract.getTrustees()
             const beneficiaries = await trustContract.getBeneficiaries()
             const owner = await trustContract.getOwner()
-            assert.equal(0x6db649efE9CeDC4178e379565A5415A64F362ED0, trustees)
+            assert.equal(0x6db649efE9CeDC4178e379565A5415A64F362ED0, trustees[0])
             assert.equal(beneficiaries[0], 0xfb876653069cbfc67bCB7661564136ea670c247E)
             assert.equal(deployer.address, owner)
         })

@@ -26,18 +26,26 @@ error DecentralizedTrustFund_MustDepositValidAmount();
 error DecentralizedTrustFund_SufficentTimeNotElapsed();
 
 contract DecentralizedTrustFund is KeeperCompatibleInterface {
+    struct Beneficiary {
+        address to;
+        uint256 amount;
+    }
+
     address[] private trustees;
     uint256 private ethBalance;
     uint256 private daiBalance;
     uint256 private interval;
-    uint256 private amountWithdrawable;
+    uint256 private lastTimestamp;
+    uint256 private allocatedWithdrawable;
     address private owner;
-    address[] private beneficiaries;
+    address[] private beneficiariesManual;
+    Beneficiary[] private beneficiariesAuto;
     address[2] whiteLists;
     mapping (address => uint256) private addressToAmount;
     mapping (address => bool) private isBeneficiaries;
     mapping (address => bool) private isTrustee;
-    mapping (address => uint256) private lastTimestamp;
+    mapping (address => uint256) private lastTimestampSingle;
+    mapping (address => uint256) private amountWithdrawable;
     mapping (address => bool) private isWhiteList;
     IERC20 private daiToken;
     /// @dev hardcoded stable coin addresses to be refactored
@@ -54,37 +62,32 @@ contract DecentralizedTrustFund is KeeperCompatibleInterface {
 
 
 
-constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, address _trustee, uint256 _amountWithdrawable, address _daiTokenAddress){
-    for(uint i = 0; i< _beneficiaries.length; i++){
+constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, address _trustee, uint256 _allocatedWithdrawable, address _daiTokenAddress){
+    for(uint i = 0; i < _beneficiaries.length; i++){
         isBeneficiaries[_beneficiaries[i]] = true;
-        lastTimestamp[_beneficiaries[i]] = block.timestamp;
+        lastTimestampSingle[_beneficiaries[i]] = block.timestamp;
     }
     whiteLists = [0xd393b1E02dA9831Ff419e22eA105aAe4c47E1253, 0xd393b1E02Da9831EF419E22eA105aae4C47E1253];
     for(uint i = 0; i< whiteLists.length; i++){
         isWhiteList[whiteLists[i]] = true;
     }
         owner = _owner;
-        beneficiaries = _beneficiaries;
+        beneficiariesManual = _beneficiaries;
         interval = _interval;
         isTrustee[_trustee] = true;
         trustees.push(_trustee);
-        amountWithdrawable = _amountWithdrawable;
+        allocatedWithdrawable = _allocatedWithdrawable;
         daiToken = IERC20(_daiTokenAddress);
+        lastTimestamp = block.timestamp;
 
     }
 
-    function approveDeposit(uint _amount) public returns(bool success) {
-       success = daiToken.approve(address(this), _amount);
-        require(success, "Approval failed");
-    }
+    // function approveDeposit(uint _amount) public returns(bool success) {
+    //    success = daiToken.approve(address(this), _amount);
+    //     require(success, "Approval failed");
+    // }
     
 
-    function depositDai(uint _amount) public {
-        uint allowance = daiToken.allowance(msg.sender, address(this));
-        require(allowance >= _amount, "Check the daiToken allowance");
-        bool success = daiToken.transferFrom(msg.sender, address(this), _amount);
-        require(success, "Transfer failed");
-    }
     function withdrawDai(uint256 _amount) public onlyOwner {
         require(daiToken.balanceOf(address(this)) >= _amount);
         daiToken.transfer(msg.sender, _amount);
@@ -94,6 +97,7 @@ constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, 
         isTrustee[_trustee] = true;
         trustees.push(_trustee);
     }
+
     function removeTrustee(address _trustee, uint _index) public onlyOwner {
         require(_index < trustees.length, "index out of bound");
         isTrustee[_trustee] = false;
@@ -105,32 +109,74 @@ constructor(address[] memory _beneficiaries, address _owner, uint256 _interval, 
         trustees.pop();
     }
 
+    function addAutoBeneficiary(address _to, uint256 _amount) public onlyTrustee {
+        Beneficiary memory beneficiary = Beneficiary(_to, _amount);
+        beneficiariesAuto.push(beneficiary);
+    }
+
     function getTrustees() public view returns(address[] memory) {
         return trustees;
     }
+    
     function getBeneficiaries() public view returns(address[] memory) {
-        return beneficiaries;
+        return beneficiariesManual;
     }
 
     function checkUpkeep(bytes memory /* checkData */ ) public view override returns (
             bool upkeepNeeded,
             bytes memory /* performData */
         ){
-         if(block.timestamp - lastTimestamp[msg.sender] >= interval){
+         if(block.timestamp - lastTimestamp >= interval){
              upkeepNeeded = true;
          } else {
              upkeepNeeded = false;
          }
-        }
+    }
     
     function performUpkeep(bytes calldata /* performData */) external override {
         (bool enoughTimePassed, ) = checkUpkeep("");
         if(!enoughTimePassed){
             revert DecentralizedTrustFund_SufficentTimeNotElapsed();
         }
-        daiToken.transfer(msg.sender, amountWithdrawable);
-        lastTimestamp[msg.sender] = block.timestamp;
+        if(beneficiariesAuto.length > 0){
+            for(uint256 i; i < beneficiariesAuto.length; i++){
+                daiToken.transfer(beneficiariesAuto[i].to, beneficiariesAuto[i].amount);
+            }
+        }
+        
     }
+
+    function checkUpkeepSingle(bytes memory /* checkData */ ) public view returns (
+            bool upkeepNeeded,
+            bytes memory /* performData */
+        ){
+         if(block.timestamp - lastTimestampSingle[msg.sender] >= interval){
+             upkeepNeeded = true;
+         } else {
+             upkeepNeeded = false;
+         }
+    }
+
+    function beneficiaryWithdrawDai(uint256 _amount) public {
+        require(isBeneficiaries[msg.sender], "Not approved beneficiary");
+        (bool enoughTimePassed, ) = checkUpkeepSingle("");
+        if(!enoughTimePassed){
+            revert DecentralizedTrustFund_SufficentTimeNotElapsed();
+        }
+        uint256 multiples = (block.timestamp - lastTimestampSingle[msg.sender]) / interval;
+        amountWithdrawable[msg.sender]+= allocatedWithdrawable * multiples;
+        require(_amount <= amountWithdrawable[msg.sender], "Insufficient allowance");
+        amountWithdrawable[msg.sender]-= _amount;
+        daiToken.transfer(msg.sender, _amount);
+        lastTimestampSingle[msg.sender] = block.timestamp;
+    }
+
+    function depositDai(uint _amount) public {
+        uint allowance = daiToken.allowance(msg.sender, address(this));
+        require(allowance >= _amount, "Check the daiToken allowance");
+        bool success = daiToken.transferFrom(msg.sender, address(this), _amount);
+        require(success, "Transfer failed");
+    }   
 
     function depositEth() public payable {
         if(msg.value == 0){
